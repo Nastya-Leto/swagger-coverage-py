@@ -24,7 +24,7 @@ class CoverageReporter:
 
     def __get_output_dir(self):
         output_dir = "swagger-coverage-output"
-        subdir = re.match(r"(^\w*)://(.*)", self.host).group(2)
+        subdir = re.match(r"(^\w*)://(.*)", self.host).group(2).replace('.','_').replace(':','_')
         return f"{output_dir}/{subdir}"
 
     def __get_ignored_paths_from_config(self) -> List[str]:
@@ -80,13 +80,24 @@ class CoverageReporter:
         ).exists(), (
             f"No commandline tools is found in following locations:\n{cmd_path}\n"
         )
+
+        # Определяем команду для запуска
         command = [cmd_path, "-s", self.swagger_doc_file, "-i", self.output_dir]
         if self.swagger_coverage_config:
             command.extend(["-c", self.swagger_coverage_config])
 
-        # Adjust the file paths for Windows
         if platform.system() == "Windows":
-            command = [arg.replace("/", "\\") for arg in command]
+            # Указываем путь к Git Bash
+            git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+            command = [git_bash_path, "-c", f'"{cmd_path}" -s "{self.swagger_doc_file}" -i "{self.output_dir}"']
+            if self.swagger_coverage_config:
+                command.append(f'-c "{self.swagger_coverage_config}"')
+
+            # Обрабатываем пути, если нужно
+            os.chdir(Path(__file__).resolve().parents[4])  # Переход в корневую папку
+            shutil.copy(cmd_path, os.getcwd())  # Копируем исполняемый файл в текущую директорию
+            shutil.copy(os.path.join(os.path.dirname(__file__), 'swagger-coverage-commandline', 'bin',
+                                     'swagger-coverage-commandline.bat'), os.getcwd())
         
         # Suppress all output if not in debug mode
         if not DEBUG_MODE:
